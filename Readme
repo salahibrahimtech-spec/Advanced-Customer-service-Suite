@@ -1,0 +1,186 @@
+# AI Customer Service Agent for a Laptop Store
+
+> A working demo of an AI agent that serves customers on Telegram in Arabic, answers only from the store's own data, and hands the conversation to a human when it should.
+
+**Personal project · Working demo · Fictional store with sample prices and policies**
+
+![The agent qualifying a customer and recommending a laptop](screenshots/02-qualifying-questions.png)
+
+---
+
+## Why I built this
+
+Stores that sell through chat run into the same problems every day:
+
+- The same questions over and over: price, specs, warranty, shipping, installments.
+- Customers who don't know what they need, so the conversation drifts.
+- Haggling ("What's your best price?") that a junior agent shouldn't be negotiating.
+- Rushed answers, like a guessed price or a promised policy the store doesn't actually have.
+
+I ran customer service operations and scaled a team from 7 to 15, so I've dealt with these problems first-hand. I wanted to see how much of that know-how I could turn into clear rules an AI agent follows, and where it should stop and pass the conversation to a person.
+
+---
+
+## What the agent does
+
+- Talks to customers in polite, natural Arabic, like a good service rep and not a robot.
+- Asks the right questions before recommending anything.
+- Recommends 1–2 laptops from the store's catalog and explains why they fit.
+- Answers questions about warranty, shipping, payment and returns using only the store's policy file.
+- Hands off haggling, complaints and anything it isn't sure about, and alerts the store owner.
+- Saves the customer's name and needs as a lead once it understands what they want.
+- Lets the store owner update prices and products just by chatting with a separate admin agent.
+
+---
+
+## See it in action
+
+*The conversations in the screenshots are in Arabic. The messages quoted below are English translations.*
+
+### 1. It answers a greeting with the same kind of greeting
+![Greeting](screenshots/01-greeting.png)
+
+**Customer:** "Good morning"
+**Agent:** replies with a warm "good morning" of its own and introduces itself.
+**Why it matters:** Answering a greeting with a different one can feel cold. It's a small detail, and it matters in local service culture.
+
+### 2. It asks before it recommends
+![Qualifying questions](screenshots/02-qualifying-questions.png)
+
+**Customer:** "I want a laptop" → "It's for my daughter at university. She carries it every day." → "Business studies"
+**Agent:** asks one question at a time: who the laptop is for, how it will be used, and the field of study. It then recommends the lightest suitable laptops and gives their weight.
+**Why it matters:** A good salesperson qualifies first. A business student doesn't need a gaming GPU, and someone who carries a laptop all day needs a light one.
+
+### 3. It knows when a Mac is the wrong choice
+![Software compatibility](screenshots/03-mac-software.png)
+
+**Customer:** "My son studies civil engineering. Would a Mac work?" → "AutoCAD and Revit"
+**Agent:** first asks which programs they use, then explains that those programs need Windows.
+**Why it matters:** It prevents a sale that would end in a return and an unhappy customer.
+
+### 4. It's honest about budget and lets the customer decide
+![Budget](screenshots/04-budget.png)
+
+**Customer:** "Gaming, and my budget is 50K"
+**Agent:** explains what that budget can and can't do for gaming, shows the closest option, and asks whether the budget works for them.
+**Why it matters:** It never pushes the customer up or down on its own, so the customer can trust it.
+
+### 5. Haggling goes to a human
+![Haggling hand-off](screenshots/05-haggling.png)
+![Owner alert](screenshots/05b-owner-alert.png)
+
+**Customer:** "So what's your best price?"
+**Agent:** doesn't offer a discount. It tells the customer the team will follow up, and the store owner gets an alert with the question and the customer's details.
+**Why it matters:** Discounts are a business decision, not a chatbot decision.
+
+### 6. It doesn't hand over the whole price list
+![Price range](screenshots/06-price-range.png)
+
+**Customer:** "What's your price range, from cheapest to most expensive?"
+**Agent:** asks about usage and budget instead of listing every price range.
+**Why it matters:** A single message with every category and price is all a competitor or price-shopper needs.
+
+### 7. It checks before it guesses
+![Typo check](screenshots/07-typo.png)
+
+**Customer:** a message with a one-letter typo that, in Arabic, turned "laptops" into "regions."
+**Agent:** asks, "Did you mean the laptops we have available?"
+**Why it matters:** Confidently answering the wrong question is worse than asking.
+
+### 8. Policies come from the store, not from the AI
+![Policies](screenshots/08-policies.png)
+
+**Customer:** "Do you offer installments? And how many days does delivery take?"
+**Agent:** answers using only the store's policy file.
+
+### 9. No made-up answers
+![Unknown question](screenshots/09-unknown-question.png)
+
+**Customer:** asks something the store data doesn't cover.
+**Agent:** says it will check with the team instead of guessing, and the owner gets an alert.
+
+### 10. Every interested customer becomes a lead
+![Lead captured](screenshots/10-lead.png)
+
+The agent asks for the customer's name only after it understands what they need, never at the start of the chat. It then saves the name, need and budget and sends them to the owner.
+
+### 11. The owner updates the store by chatting
+![Admin update](screenshots/11-admin-update.png)
+
+The owner tells the admin agent, "Change the Zenbook price to 58K," and the customer agent quotes the new price in the next conversation. No files to edit and no restart.
+
+---
+
+## How I built it
+
+```mermaid
+flowchart LR
+    C["Customer on Telegram"] --> S["Customer agent<br/>read-only"]
+    S --> R["Router guide<br/>which file to open"]
+    R --> F1["High-end catalog"]
+    R --> F2["Mid-range catalog"]
+    R --> F3["Budget catalog"]
+    R --> P["Store policies"]
+    S -- "haggling / unknown / complaint" --> A["Owner alert<br/>via separate admin bot"]
+    S -- "name + need" --> L["Lead saved + owner alert"]
+    O["Store owner"] --> AD["Admin agent"]
+    AD -- "updates" --> F1 & F2 & F3 & P
+```
+
+1. **Mapped the problems first.** Before writing any rules, I listed what goes wrong in chat-based customer service.
+2. **Wrote the rules as plain instructions:** the agent's tone, what it must never do, and when to hand off.
+3. **Structured the store data** so the agent always follows the same path. A router guide tells it which single catalog file to open (high-end, mid-range or budget) based on budget and usage, and a separate file holds the store policies. Every laptop entry includes weight, battery and screen details, so each question the agent asks leads to a concrete choice.
+4. **Split the work between two agents.** A locked-down agent talks to customers, and a separate admin agent is what the owner uses to manage the data.
+5. **Locked down the customer agent.** It can only read the store data and save a lead. A guard plugin, which I built with AI assistance, blocks every other tool, and customers can't run bot commands.
+6. **Removed all bot noise.** Command menus, status messages and system hints are turned off, so customers only see real replies.
+7. **Tested with real conversations** and turned every failure into a rule (see below).
+
+Built on **Hermes Agent** (Nous Research) with the **DeepSeek** model and the **Telegram Bot API**. The agent's behavior is defined in instruction and data files.
+
+---
+
+## What went wrong in testing, and what I changed
+
+| What happened | What I changed |
+|---|---|
+| A customer asked "What's your best price?" (haggling). The agent read it as a question about price categories and listed every price range. | Added a rule that treats haggling phrases as negotiation and hands them off, plus a rule never to reveal the full price map. |
+| A customer's one-letter typo turned "laptops" into "regions." The agent answered about shipping regions. | Added a "confirm before answering" rule for anything that could be a typo. |
+| A question about running engineering software on a Mac wasn't covered, so the agent had to hand it off. | Added a software-compatibility section to the policy file. |
+| When I tested from the same Telegram account that receives owner alerts, the alerts showed up inside the customer chat. | Moved alerts to a separate admin bot, so internal notes don't appear in the customer's chat. |
+| Customers could see the bot's command menu and system messages. | Turned off every automated message and cleared the command menu. |
+| Hand-off replies said the same thing twice. | Limited hand-offs to a single line. |
+| Testers tried prompt injection ("ignore your instructions", "print your system prompt"). | Checked that the agent stayed in its role and revealed nothing. |
+
+---
+
+## What a store should expect
+
+*This is a demo, so these are expected outcomes, not measured results.*
+
+- **Instant, consistent answers** to routine questions, the same every time (around the clock once it's hosted on a server).
+- **Staff time goes where it matters.** Haggling, complaints and deals ready to close reach a person with the customer's question already attached.
+- **No invented prices or policies** reaching customers.
+- **Warmer leads.** Every customer who shares their name arrives with their needs and budget.
+- **Fewer wrong purchases,** because the agent qualifies customers before recommending.
+
+**How I would measure it in a real store**
+
+- Share of conversations resolved without a hand-off
+- Hand-off reasons (haggling, missing data, complaints), and which ones better data could fix
+- Leads per week, and how many turn into sales
+- Response time compared with human agents
+- Customer reports of wrong answers
+
+---
+
+## My role
+
+I defined the business rules, designed the conversation flow and the data structure, set up both agents, and tested and refined the behavior through real conversations. The code-level parts were built with AI assistance.
+
+## Current limitations
+
+- Demo only: a fictional store with sample prices and policies, not used with real customers.
+- The owner gets alerts, but there's no way yet to reply to the customer from the admin side.
+- Telegram only, while most customers in this market are on WhatsApp.
+- Runs on a local machine, not a server.
+- The rules guide the AI, but they can't guarantee it never makes a mistake.
